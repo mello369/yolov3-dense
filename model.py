@@ -3,7 +3,6 @@
 import torch
 import torch.nn as nn
 
-
 config = [
     (32, 3, 1),
     (64, 3, 2),
@@ -71,6 +70,34 @@ class ResidualBlock(nn.Module):
 
         return x
 
+class DenseBlock(nn.Module):
+    def __init__(self, channels, use_residual=True, num_repeats=1):
+        super().__init__()
+        self.layers = nn.ModuleList()
+        for repeat in range(num_repeats):
+            self.layers += [
+                nn.Sequential(
+                    CNNBlock(channels, channels // 2, kernel_size=1),
+                    CNNBlock(channels // 2, channels, kernel_size=3, padding=1),
+                )
+            ]
+
+        self.use_residual = use_residual
+        self.num_repeats = num_repeats
+
+    def forward(self, x):
+        prev_inputs=nn.ModuleList()
+        prev_inputs+=x
+        for layer in self.layers:
+            if self.use_residual:
+                x = layer(x)
+                for prev_input  in prev_inputs :
+                    x = x + prev_input
+                prev_inputs +=x
+            else:
+                x = layer(x)
+
+        return x
 
 class ScalePrediction(nn.Module):
     def __init__(self, in_channels, num_classes):
@@ -108,7 +135,7 @@ class YOLOv3(nn.Module):
 
             x = layer(x)
 
-            if isinstance(layer, ResidualBlock) and layer.num_repeats == 8:
+            if isinstance(layer, DenseBlock) and layer.num_repeats == 8:
                 route_connections.append(x)
 
             elif isinstance(layer, nn.Upsample):
@@ -137,12 +164,12 @@ class YOLOv3(nn.Module):
 
             elif isinstance(module, list):
                 num_repeats = module[1]
-                layers.append(ResidualBlock(in_channels, num_repeats=num_repeats,))
+                layers.append(DenseBlock(in_channels, num_repeats=num_repeats,))
 
             elif isinstance(module, str):
                 if module == "S":
                     layers += [
-                        ResidualBlock(in_channels, use_residual=False, num_repeats=1),
+                        DenseBlock(in_channels, use_residual=False, num_repeats=1),
                         CNNBlock(in_channels, in_channels // 2, kernel_size=1),
                         ScalePrediction(in_channels // 2, num_classes=self.num_classes),
                     ]

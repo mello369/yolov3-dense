@@ -86,7 +86,7 @@ class DenseBlock(nn.Module):
         self.num_repeats = num_repeats
 
     def forward(self, x):
-        prev_inputs=nn.ModuleList()
+        prev_inputs=[]
         prev_inputs+=x
         for layer in self.layers:
             if self.use_residual:

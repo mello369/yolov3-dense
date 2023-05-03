@@ -87,13 +87,14 @@ class DenseBlock(nn.Module):
 
     def forward(self, x):
         prev_inputs=[]
-        prev_inputs+=x
+        prev_inputs.append(x)
+
         for layer in self.layers:
             if self.use_residual:
                 x = layer(x)
                 for prev_input  in prev_inputs :
                     x = x + prev_input
-                prev_inputs +=x
+                prev_inputs.append(x)
             else:
                 x = layer(x)
 
